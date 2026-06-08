@@ -1,3 +1,5 @@
+local AutoMessage = CreateFrame("Frame")
+
 local Messages = {
     "Grats %s on lvl %d!",
     "Well done %s, you reached level %d!",
@@ -182,3 +184,9 @@ AutoMessage:SetScript("OnEvent", function(self, event, ...)
         ScanGuildRosterForLevelUps()
     end
 end)
+
+AutoMessage:RegisterEvent("PLAYER_LOGIN")
+AutoMessage:RegisterEvent("GUILD_ROSTER_UPDATE")
+AutoMessage:RegisterEvent("PLAYER_ENTERING_WORLD")
+
+print("|cffffd700AutoMessage|r loaded! Congratulating level-ups and welcoming new guild members.")
