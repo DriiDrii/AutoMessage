@@ -2,5 +2,10 @@
 ## Title: AutoMessage
 ## Author: DriiDrii74
 ## Version: 1.0.0
+## SavedVariables: AutoMessageDB
 
+embeds.xml
+
+Core.lua
+Commands.lua
 AutoMessage.lua

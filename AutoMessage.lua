@@ -1,31 +1,4 @@
-local AutoMessage = CreateFrame("Frame")
-
-local Messages = {
-    "Grats %s on lvl %d!",
-    "Well done %s, you reached level %d!",
-    "Finally, %s hit level %d! Congrats!",
-    "Awesome job %s, level %d achieved!",
-    "Congratulations %s on reaching level %d!",
-    "Way to go %s, level %d is yours!",
-    "Great work %s, you made it to level %d!",
-    "Fantastic %s, level %d unlocked!",
-    "Impressive %s, you hit level %d!",
-}
-
-local WelcomeMessages = {
-    "Welcome to the guild, %s!",
-    "Glad to have you with us, %s!",
-    "Welcome aboard, %s!",
-    "Great to see you join us, %s!",
-    "Welcome to the family, %s!",
-    "Happy to have you here, %s!",
-    "Welcome to the team, %s!",
-    "Glad you could join us, %s!",
-    "Welcome to the guild, %s! Looking forward to adventuring together!",
-    "Welcome %s! We're excited to have you in the guild!",
-    "Welcome %s! Can't wait to see you in action with us!",
-}
-
+--[[ 
 local KnownGuildMembers = {}
 
 local LastCongratulated = {}
@@ -37,46 +10,11 @@ local GuildRosterInitialized = false
 AutoMessageDB = {
     enabled = true,
     cooldown = 300,
-    channel = "GUILD",
+    channel = "PRINT",
     whisperTarget = nil,
 }
 
-SLASH_AUTOMESSAGE = "/am"
-SlashCmdList["AUTOMESSAGE"] = function(msg)
-    local command, arg = msg:match("^(%S*)%s*(.-)$")
-    if command == "channel" then
-        if arg == "PRINT" or arg == "GUILD" or arg == "PARTY" or arg == "RAID" or arg == "WHISPER" then
-            AutoMessageDB.channel = arg
-            print("|cffffd700AutoMessage|r: Channel set to " .. arg)
-        else
-            print("|cffffd700AutoMessage|r: Invalid channel. Use PRINT, GUILD, PARTY, RAID, or WHISPER.")
-        end
-    elseif command == "whisper" then
-        AutoMessageDB.whisperTarget = arg
-        print("|cffffd700AutoMessage|r: Whisper target set to " .. arg)
-    elseif command == "cooldown" then
-        local cooldown = tonumber(arg)
-        if cooldown then
-            AutoMessageDB.cooldown = cooldown
-            print("|cffffd700AutoMessage|r: Cooldown set to " .. cooldown .. " seconds.")
-        else
-            print("|cffffd700AutoMessage|r: Invalid cooldown value.")
-        end
-    else
-        print("|cffffd700AutoMessage|r Commands:")
-        print("/am channel [CHANNEL] - Set the channel for messages (PRINT, GUILD, PARTY, RAID, WHISPER)")
-        print("/am whisper [PLAYER] - Set the target player for whispers")
-        print("/am cooldown [SECONDS] - Set the cooldown time between messages")
-    end
-end
 
-local function GetCleanName(name)
-    return gsub(name or "", "%-.*$", "")
-end
-
-local function IsCurrentPlayer(name)
-    return GetCleanName(name) == GetCleanName(UnitName("player"))
-end
 
 local function GetRandomMessage(playerName, level)
     local messageTemplate = Messages[math.random(#Messages)]
@@ -135,15 +73,85 @@ local function SendWelcome(playerName)
 
     WelcomeSent[playerName] = true
 end
+]]
 
-local function ScanGuildRosterForLevelUps()
-    if not IsInGuild() then
-        GuildRosterInitialized = false
+local GuildRosterInitialized = false
+local KnownGuildMembers = {}
+
+local LastCongratulated = {}
+local WelcomeSent = {}
+
+local function GetCleanName(name)
+    return gsub(name or "", "%-.*$", "")
+end
+
+local function IsCurrentPlayer(name)
+    return GetCleanName(name) == GetCleanName(UnitName("player"))
+end
+
+local function GetRandomMessage(playerName, level)
+    local messageTemplate = AutoMessage.db.profile.gratzMessages[math.random(#AutoMessage.db.profile.gratzMessages)]
+    return string.format(messageTemplate, playerName, level)
+end
+
+local function GetRandomWelcomeMessage(playerName, level)
+    local messageTemplate = AutoMessage.db.profile.welcomeMessages[math.random(#AutoMessage.db.profile.welcomeMessages)]
+    return string.format(messageTemplate, playerName, level)
+end
+
+local function CanCongratulate(playerName)
+    local now = time()
+
+    if LastCongratulated[playerName] then
+        if now - LastCongratulated[playerName] < AutoMessage.db.profile.cooldown then
+            return false
+        end
+    end
+    LastCongratulated[playerName] = now
+    return true
+end
+
+local function SendWelcome(playerName)
+    if IsCurrentPlayer(playerName) or not AutoMessage.db.profile.enabled or WelcomeSent[playerName] then
         return
     end
 
-    GuildRoster()
+    local message = GetRandomWelcomeMessage(playerName)
+    if SendMessage(message) then
+        WelcomeSent[playerName] = true
+    end
+end
 
+local function SendCongratulation(playerName, level)
+    if IsCurrentPlayer(playerName) then
+        return
+    end
+    if CanCongratulate(playerName) then
+        local message = GetRandomMessage(playerName, level)
+        SendMessage(message)
+    end
+end
+
+local function SendMessage(message)
+    local hasSend = false
+    for key, value in pairs(self.db.profile.channels) do
+        if value then
+            hasSend = true
+            self:Debug("Key is " .. tostring(key))
+        end
+    end
+    return hasSend
+end
+
+
+function AutoMessage:ScanGuildRoster()
+    if not IsInGuild() then
+        self:Print("You must be in a guild to use this addon")
+        GuildRosterInitialized = false
+        return
+    end
+    self:Debug("Scanning guild roster for level-ups and new members...")
+    GuildRoster()
     local numMembers = GetNumGuildMembers()
     for i = 1, numMembers do
         local name, _, _, level, _, _, _, _, _, _, _, _, _, _, _, _, guid = GetGuildRosterInfo(i)
@@ -155,11 +163,11 @@ local function ScanGuildRosterForLevelUps()
 
             if previousMember then
                 if previousLevel and level > previousLevel then
-                    print("|cffffd700AutoMessage|r: Detected level up for " .. cleanName .. " from " .. previousLevel .. " to " .. level)
+                    self:Print("Detected level up for " .. cleanName .. " from " .. previousLevel .. " to " .. level)
                     SendCongratulation(cleanName, level)
                 end
             elseif GuildRosterInitialized then
-                print("|cffffd700AutoMessage|r: Detected new guild member " .. cleanName .. ". Sending welcome.")
+                self:Print("Detected new guild member " .. cleanName .. ".")
                 SendWelcome(cleanName)
             end
 
@@ -170,23 +178,7 @@ local function ScanGuildRosterForLevelUps()
     GuildRosterInitialized = true
 end
 
-local function InitializeGuildRoster()
-    if IsInGuild() then
-        GuildRoster()
-    end
+function AutoMessage:AddWelcomeMessage(info, newMessage)
+    self:Debug("Ajout du message " .. newMessage)
+   table.insert(AutoMessage.db.profile.welcomeMessages, newMessage)
 end
-
-AutoMessage:SetScript("OnEvent", function(self, event, ...)
-    if event == "PLAYER_LOGIN" then
-        InitializeGuildRoster()
-        ScanGuildRosterForLevelUps()
-    elseif event == "GUILD_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
-        ScanGuildRosterForLevelUps()
-    end
-end)
-
-AutoMessage:RegisterEvent("PLAYER_LOGIN")
-AutoMessage:RegisterEvent("GUILD_ROSTER_UPDATE")
-AutoMessage:RegisterEvent("PLAYER_ENTERING_WORLD")
-
-print("|cffffd700AutoMessage|r loaded! Congratulating level-ups and welcoming new guild members.")
