@@ -1,0 +1,6 @@
+## Interface: 11508
+## Title: AutoMessage
+## Author: DriiDrii74
+## Version: 1.0.0
+
+AutoMessage.lua
