@@ -10,11 +10,11 @@ local colors = {
 
 local defaults = {
     profile = {
-        debug = true,
+        debug = false,
         enabled = true,
         channels = {
-            PRINT = true,
-            GUILD = false,
+            PRINT = false,
+            GUILD = true,
             PARTY = false,
             RAID = false,
             WHISPER = false
