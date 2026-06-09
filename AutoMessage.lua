@@ -112,7 +112,6 @@ function AutoMessage:ScanGuildRoster()
         return
     end
 
-    self:Debug("IsInitialized : " .. tostring(GuildRosterInitialized))
     local numMembers = GetNumGuildMembers()
     for i = 1, numMembers do
         local name, _, _, level, _, _, _, _, _, _, _, _, _, _, _, _, guid = GetGuildRosterInfo(i)
