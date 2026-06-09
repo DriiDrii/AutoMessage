@@ -1,80 +1,3 @@
---[[ 
-local KnownGuildMembers = {}
-
-local LastCongratulated = {}
-
-local WelcomeSent = {}
-
-local GuildRosterInitialized = false
-
-AutoMessageDB = {
-    enabled = true,
-    cooldown = 300,
-    channel = "PRINT",
-    whisperTarget = nil,
-}
-
-
-
-local function GetRandomMessage(playerName, level)
-    local messageTemplate = Messages[math.random(#Messages)]
-    return string.format(messageTemplate, playerName, level)
-end
-
-local function GetRandomWelcomeMessage(playerName)
-    local messageTemplate = WelcomeMessages[math.random(#WelcomeMessages)]
-    return string.format(messageTemplate, playerName)
-end
-
-local function CanCongratulate(playerName)
-    local now = time()
-
-    if LastCongratulated[playerName] then
-        if now - LastCongratulated[playerName] < AutoMessageDB.cooldown then
-            return false
-        end
-    end
-    LastCongratulated[playerName] = now
-    return true
-end
-
-local function SendCongratulation(playerName, level)
-    if IsCurrentPlayer(playerName) then
-        return
-    end
-
-    if CanCongratulate(playerName) then
-        local message = GetRandomMessage(playerName, level)
-        local channel = AutoMessageDB.channel
-        if channel == "PRINT" then
-            print("|cffffd700AutoMessage|r: " .. message)
-        elseif channel == "WHISPER" then
-            SendChatMessage(message, "WHISPER", nil, playerName)
-        else
-            SendChatMessage(message, channel)
-        end
-    end
-end
-
-local function SendWelcome(playerName)
-    if IsCurrentPlayer(playerName) or not AutoMessageDB.enabled or WelcomeSent[playerName] then
-        return
-    end
-
-    local message = GetRandomWelcomeMessage(playerName)
-    local channel = AutoMessageDB.channel
-    if channel == "PRINT" then
-        print("|cffffd700AutoMessage|r: " .. message)
-    elseif channel == "WHISPER" then
-        SendChatMessage(message, "WHISPER", nil, playerName)
-    else
-        SendChatMessage(message, channel)
-    end
-
-    WelcomeSent[playerName] = true
-end
-]]
-
 local GuildRosterInitialized = false
 local KnownGuildMembers = {}
 
@@ -91,12 +14,15 @@ end
 
 local function GetRandomMessage(playerName, level)
     local messageTemplate = AutoMessage.db.profile.gratzMessages[math.random(#AutoMessage.db.profile.gratzMessages)]
-    return string.format(messageTemplate, playerName, level)
+    messageTemplate = string.gsub(messageTemplate, "%[username%]", playerName)
+    messageTemplate = string.gsub(messageTemplate, "%[lvl%]", level)
+    return messageTemplate
 end
 
-local function GetRandomWelcomeMessage(playerName, level)
+local function GetRandomWelcomeMessage(playerName)
     local messageTemplate = AutoMessage.db.profile.welcomeMessages[math.random(#AutoMessage.db.profile.welcomeMessages)]
-    return string.format(messageTemplate, playerName, level)
+    messageTemplate = string.gsub(messageTemplate, "%[username%]", playerName)
+    return messageTemplate
 end
 
 local function CanCongratulate(playerName)
@@ -111,38 +37,51 @@ local function CanCongratulate(playerName)
     return true
 end
 
-local function SendWelcome(playerName)
-    if IsCurrentPlayer(playerName) or not AutoMessage.db.profile.enabled or WelcomeSent[playerName] then
-        return
-    end
-
-    local message = GetRandomWelcomeMessage(playerName)
-    if SendMessage(message) then
-        WelcomeSent[playerName] = true
-    end
-end
-
-local function SendCongratulation(playerName, level)
-    if IsCurrentPlayer(playerName) then
-        return
-    end
-    if CanCongratulate(playerName) then
-        local message = GetRandomMessage(playerName, level)
-        SendMessage(message)
-    end
-end
-
-local function SendMessage(message)
+local function GlobalSendMessage(message, playerName)
+    AutoMessage:Debug("Will send " .. message)
     local hasSend = false
-    for key, value in pairs(self.db.profile.channels) do
+    for key, value in pairs(AutoMessage.db.profile.channels) do
         if value then
             hasSend = true
-            self:Debug("Key is " .. tostring(key))
+            local strKey = tostring(key)
+            AutoMessage:Debug("Key is " .. strKey .. " Message is " .. message .. " PlayerName is " .. playerName)
+            if strKey == "PRINT" then
+                AutoMessage:Print(message)
+            elseif strKey == "WHISPER" then
+                SendChatMessage(message, strKey, nil, playerName)
+            else
+                SendChatMessage(message, strKey)
+            end
         end
     end
     return hasSend
 end
 
+local function SendWelcome(playerName, totalName)
+    if IsCurrentPlayer(playerName) or not AutoMessage.db.profile.enabled or WelcomeSent[playerName] then
+        return
+    end
+
+    local message = GetRandomWelcomeMessage(playerName)
+    if GlobalSendMessage(message, totalName) then
+        AutoMessage:Debug("Welcome sent to " .. playerName)
+        WelcomeSent[playerName] = true
+    end
+end
+
+local function SendCongratulation(playerName, level, totalName)
+    AutoMessage:Debug("Call for " .. playerName)
+    if IsCurrentPlayer(playerName) then
+        AutoMessage:Debug("It's me -- Oops")
+        return
+    end
+    AutoMessage:Debug("Try to send a message to " .. playerName)
+    if CanCongratulate(playerName) then
+        AutoMessage:Debug("Allowed to send")
+        local message = GetRandomMessage(playerName, level)
+        GlobalSendMessage(message, totalName)
+    end
+end
 
 function AutoMessage:ScanGuildRoster()
     if not IsInGuild() then
@@ -150,8 +89,6 @@ function AutoMessage:ScanGuildRoster()
         GuildRosterInitialized = false
         return
     end
-    self:Debug("Scanning guild roster for level-ups and new members...")
-    GuildRoster()
     local numMembers = GetNumGuildMembers()
     for i = 1, numMembers do
         local name, _, _, level, _, _, _, _, _, _, _, _, _, _, _, _, guid = GetGuildRosterInfo(i)
@@ -164,11 +101,11 @@ function AutoMessage:ScanGuildRoster()
             if previousMember then
                 if previousLevel and level > previousLevel then
                     self:Print("Detected level up for " .. cleanName .. " from " .. previousLevel .. " to " .. level)
-                    SendCongratulation(cleanName, level)
+                    SendCongratulation(cleanName, level, name)
                 end
             elseif GuildRosterInitialized then
                 self:Print("Detected new guild member " .. cleanName .. ".")
-                SendWelcome(cleanName)
+                SendWelcome(cleanName, name)
             end
 
             KnownGuildMembers[memberKey] = { name = cleanName, level = level, guid = guid }

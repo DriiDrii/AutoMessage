@@ -201,6 +201,10 @@ end
 
 function AutoMessage:OnEnable()
     self.db.profile.enabled = true
+    C_Timer.NewTicker(11, function()
+        self:Debug("Tick - GuildRoster call")
+        GuildRoster()
+    end)
     self:RegisterEvent("GUILD_ROSTER_UPDATE", "ScanGuildRoster")
     self:RegisterEvent("PLAYER_LOGIN", "ScanGuildRoster")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "ScanGuildRoster")
