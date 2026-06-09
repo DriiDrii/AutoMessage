@@ -45,7 +45,9 @@ local defaults = {
             "Welcome [username]! Can't wait to see you in action with us!",
         },
         updateCongratsLock = true,
-        updateWelcomeLock = true
+        updateWelcomeLock = true,
+        enableCongrats = true,
+        enableWelcome = true
     },
 }
 
@@ -98,6 +100,22 @@ local options = {
                     step = 10,
                     get = function(info) return AutoMessage.db.profile.cooldown end,
                     set = function(info, value) AutoMessage.db.profile.cooldown = value end,
+                },
+                enableCongrats = {
+                    type = "toggle",
+                    name = "Enable Congrats Messages",
+                    desc = "Toggle Congrats messages in the chat window.",
+                    order = 5,
+                    get = function(info) return AutoMessage.db.profile.enableCongrats end,
+                    set = function(info, value) AutoMessage.db.profile.enableCongrats = value end,
+                },
+                enableWelcome = {
+                    type = "toggle",
+                    name = "Enable Welcome Messages",
+                    desc = "Toggle Welcome messages in the chat window.",
+                    order = 5,
+                    get = function(info) return AutoMessage.db.profile.enableWelcome end,
+                    set = function(info, value) AutoMessage.db.profile.enableWelcome = value end,
                 }
             }
         },
@@ -202,11 +220,12 @@ end
 function AutoMessage:OnEnable()
     self.db.profile.enabled = true
     C_Timer.NewTicker(11, function()
-        self:Debug("Tick - GuildRoster call")
-        GuildRoster()
+        if self.db.profile.enabled then
+            GuildRoster()
+        end
     end)
     self:RegisterEvent("GUILD_ROSTER_UPDATE", "ScanGuildRoster")
-    self:RegisterEvent("PLAYER_LOGIN", "ScanGuildRoster")
+    self:RegisterEvent("PLAYER_LOGIN", "InitializeRoster")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "ScanGuildRoster")
 end
 
