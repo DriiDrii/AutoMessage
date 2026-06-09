@@ -93,6 +93,7 @@ function AutoMessage:InitializeRoster()
         return
     end
 
+    self:Debug("Initialize started")
     local numMembers = GetNumGuildMembers()
     for i = 1, numMembers do
         local name, _, _, level, _, _, _, _, _, _, _, _, _, _, _, _, guid = GetGuildRosterInfo(i)
