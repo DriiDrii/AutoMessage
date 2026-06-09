@@ -139,3 +139,7 @@ end
 function AutoMessage:AddWelcomeMessage(info, newMessage)
    table.insert(AutoMessage.db.profile.welcomeMessages, newMessage)
 end
+
+function AutoMessage:AddCongratsMessage(info, newMessage)
+   table.insert(AutoMessage.db.profile.gratzMessages, newMessage)
+end
