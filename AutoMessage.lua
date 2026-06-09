@@ -27,7 +27,6 @@ end
 
 local function CanCongratulate(playerName)
     if not AutoMessage.db.profile.enableCongrats then
-        AutoMessage:Debug("Congrats not enabled")
         return
     end
 
@@ -61,8 +60,7 @@ local function GlobalSendMessage(message, playerName)
 end
 
 local function SendWelcome(playerName, totalName)   
-    if not AutoMessage.db.profile.enableCongrats then
-        AutoMessage:Debug("Welcome not enabled")
+    if not AutoMessage.db.profile.enableWelcome then
         return
     end
 
