@@ -132,8 +132,6 @@ function AutoMessage:ScanGuildRoster()
             KnownGuildMembers[memberKey] = { name = cleanName, level = level, guid = guid }
         end
     end
-
-    GuildRosterInitialized = true
 end
 
 function AutoMessage:AddWelcomeMessage(info, newMessage)
