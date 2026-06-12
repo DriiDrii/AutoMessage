@@ -25,9 +25,20 @@ local function GetRandomWelcomeMessage(playerName)
     return messageTemplate
 end
 
+local function CanWelcome(playerName)
+    if not GuildRosterInitialized then
+        WelcomeSent[playerName] = true
+    end
+
+    if not AutoMessage.db.profile.enableWelcome or IsCurrentPlayer(playerName) or not AutoMessage.db.profile.enabled or WelcomeSent[playerName] then
+        return false
+    end
+    return true
+end
+
 local function CanCongratulate(playerName)
-    if not AutoMessage.db.profile.enableCongrats then
-        return
+    if not AutoMessage.db.profile.enableCongrats or IsCurrentPlayer(playerName) or not GuildRosterInitialized then
+        return false
     end
 
     local now = time()
@@ -37,15 +48,13 @@ local function CanCongratulate(playerName)
             return false
         end
     end
-    LastCongratulated[playerName] = now
     return true
 end
 
 local function GlobalSendMessage(message, playerName)
-    local hasSend = false
+    AutoMessage:Debug(message)
     for key, value in pairs(AutoMessage.db.profile.channels) do
         if value then
-            hasSend = true
             local strKey = tostring(key)
             if strKey == "PRINT" then
                 AutoMessage:Print(message)
@@ -56,82 +65,77 @@ local function GlobalSendMessage(message, playerName)
             end
         end
     end
-    return hasSend
 end
 
-local function SendWelcome(playerName, totalName)   
-    if not AutoMessage.db.profile.enableWelcome then
-        return
-    end
-
-    if IsCurrentPlayer(playerName) or not AutoMessage.db.profile.enabled or WelcomeSent[playerName] then
-        return
-    end
-
+local function SendWelcome(playerName, totalName)
     local message = GetRandomWelcomeMessage(playerName)
-    if GlobalSendMessage(message, totalName) then
-        WelcomeSent[playerName] = true
-    end
+    GlobalSendMessage(message, totalName)
+    WelcomeSent[playerName] = true
 end
 
 local function SendCongratulation(playerName, level, totalName)
-    if IsCurrentPlayer(playerName) then
-        return
-    end
-    if CanCongratulate(playerName) then
-        local message = GetRandomMessage(playerName, level)
-        GlobalSendMessage(message, totalName)
-    end
+    local message = GetRandomMessage(playerName, level)
+    GlobalSendMessage(message, totalName)    
+    LastCongratulated[playerName] = now
 end
 
-
-function AutoMessage:InitializeRoster()
+local function InitializeRoster()
     if not IsInGuild() then
-        self:Print("You must be in a guild to use this addon")
-        self.db.profile.enabled = false
+        AutoMessage:Print("You must be in a guild to use this addon")
+        AutoMessage.db.profile.enabled = false
         GuildRosterInitialized = false
         return
     end
 
-    self:Debug("Initialize started")
-    local numMembers = GetNumGuildMembers()
-    for i = 1, numMembers do
-        local name, _, _, level, _, _, _, _, _, _, _, _, _, _, _, _, guid = GetGuildRosterInfo(i)
-        if name and level then
-            local cleanName = gsub(name, "%-.*$", "")
-            local memberKey = guid or cleanName
-            KnownGuildMembers[memberKey] = { name = cleanName, level = level, guid = guid }
+    AutoMessage:Debug("Initialize started")
+    
+    AutoMessage:RegisterEvent("GUILD_ROSTER_UPDATE", "ScanGuildRoster")
+    AutoMessage:UnregisterEvent("PLAYER_LOGIN")
+    C_Timer.NewTicker(11, function()
+        if AutoMessage.db.profile.enabled then
+            AutoMessage:Debug("Tick - GuildRoster")
+            GuildRoster()
         end
-    end
-    GuildRosterInitialized = true
+    end)    
+    AutoMessage:Debug("Initialize finished")    
+    
 end
 
 function AutoMessage:ScanGuildRoster()
     if not GuildRosterInitialized then
         self:Debug("Must be initialize first!")
-        return
+        InitializeRoster()
     end
 
+    AutoMessage:Debug("Scan started")
     local numMembers = GetNumGuildMembers()
+    local hasDo = false
     for i = 1, numMembers do
         local name, _, _, level, _, _, _, _, _, _, _, _, _, _, _, _, guid = GetGuildRosterInfo(i)
-        if name and level then
+        if name and level and guid then
             local cleanName = gsub(name, "%-.*$", "")
-            local memberKey = guid or cleanName
+            local memberKey = guid
             local previousMember = KnownGuildMembers[memberKey]
             local previousLevel = previousMember and previousMember.level or nil
-
-            if previousMember then
+            if previousMember and CanCongratulate(cleanName) then
                 if previousLevel and level > previousLevel then
+                    AutoMessage:Debug("Congrats " .. cleanName .. "Previous level " .. previousLevel .. " level " .. level)
                     SendCongratulation(cleanName, level, name)
                 end
-            elseif GuildRosterInitialized then
+            end
+            
+            if not previousMember and CanWelcome(cleanName) then
                 SendWelcome(cleanName, name)
             end
 
             KnownGuildMembers[memberKey] = { name = cleanName, level = level, guid = guid }
         end
+        hasDo = true
     end
+    if hasDo then
+        GuildRosterInitialized = true
+    end
+    AutoMessage:Debug("Scan finsihed")
 end
 
 function AutoMessage:AddWelcomeMessage(info, newMessage)

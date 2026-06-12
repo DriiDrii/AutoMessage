@@ -215,28 +215,17 @@ function AutoMessage:OnInitialize()
     self:RegisterChatCommand("am", "ChatCommand")
     self:RegisterChatCommand("automessage", "ChatCommand")
     
-    self:RegisterEvent("PLAYER_LOGIN", "InitializeRoster")
-    self:RegisterEvent("GUILD_ROSTER_UPDATE", "ScanGuildRoster")
-    self:RegisterEvent("PLAYER_ENTERING_WORLD", "ScanGuildRoster")
+    self:RegisterEvent("PLAYER_LOGIN", "ScanGuildRoster")
 
     self:Print("loaded! Congratulating level-ups and welcoming new guild members.")
 end
 
 function AutoMessage:OnEnable()
     self.db.profile.enabled = true
-    
-    C_Timer.NewTicker(11, function()
-        if self.db.profile.enabled then
-            GuildRoster()
-        end
-    end)
 end
 
 function AutoMessage:OnDisable()
     self.db.profile.enabled = false
-    self:UnregisterEvent("GUILD_ROSTER_UPDATE")
-    self:UnregisterEvent("PLAYER_LOGIN")
-    self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end
 
 function AutoMessage:Print(message)
