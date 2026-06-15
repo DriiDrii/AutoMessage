@@ -139,9 +139,9 @@ function AutoMessage:ScanGuildRoster()
 end
 
 function AutoMessage:AddWelcomeMessage(info, newMessage)
-   table.insert(AutoMessage.db.profile.welcomeMessages, newMessage)
+   table.insert(AutoMessage.db.profile.welcome.messages, newMessage)
 end
 
 function AutoMessage:AddCongratsMessage(info, newMessage)
-   table.insert(AutoMessage.db.profile.gratzMessages, newMessage)
+   table.insert(AutoMessage.db.profile.congrats.messages, newMessage)
 end

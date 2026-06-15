@@ -10,17 +10,183 @@ local colors = {
 
 local defaults = {
     profile = {
-        debug = false,
-        enabled = true,
-        channels = {
-            PRINT = false,
-            GUILD = true,
-            PARTY = false,
-            RAID = false,
-            WHISPER = false
+        settings = {
+            debug = true,
+            enabled = true,
+            channels = {
+                PRINT = false,
+                GUILD = true,
+                WHISPER = false
+            },
+            cooldown = 300,            
+            enableCongrats = true,
+            enableWelcome = true
         },
-        cooldown = 300, -- 5 minutes
-        gratzMessages = {
+        congrats = {
+            messages = {
+            },
+            updateCongratsLock = true,
+        },
+        welcome = {
+            messages = {
+            },            
+            updateWelcomeLock = true,
+        }
+    },
+}
+
+local options = {
+    name = "AutoMessage",
+    handler = AutoMessage,
+    type = "group",
+    childGroups = "tab",
+    args = {
+        settings = {
+            type = "group",
+            name = "Settings",
+            order = 1,
+            args = {
+                debug = {
+                    type = "toggle",
+                    name = "Enable Debug Messages",
+                    desc = "Toggle debug messages in the chat window.",
+                    order = 1,
+                    get = function(info) return AutoMessage.db.profile.settings.debug end,
+                    set = function(info, value) AutoMessage.db.profile.settings.debug = value end,
+                },
+                channelHeader = {
+                    type = "header",
+                    name = "Common Settings",
+                    order = 2,
+                },
+                channels = {
+                    type = "multiselect",
+                    name = "Message Channels",
+                    desc = "Select the channels to send congratulatory messages to.",
+                    order = 3,
+                    values = {
+                        PRINT = "Print",
+                        GUILD = "Guild",
+                        WHISPER = "Whisper"
+                    },
+                    get = function(info, key) return AutoMessage.db.profile.settings.channels[key] end,
+                    set = function(info, key, state) AutoMessage.db.profile.settings.channels[key] = state end,
+                },
+                cooldown = {
+                    type = "range",
+                    name = "Cooldown (seconds)",
+                    desc = "Set the cooldown time between congratulatory messages to the same player.",
+                    order = 4,
+                    min = 10,
+                    max = 3600,
+                    step = 10,
+                    get = function(info) return AutoMessage.db.profile.settings.cooldown end,
+                    set = function(info, value) AutoMessage.db.profile.settings.cooldown = value end,
+                },
+                enableCongrats = {
+                    type = "toggle",
+                    name = "Enable Congrats Messages",
+                    desc = "Toggle Congrats messages in the chat window.",
+                    order = 5,
+                    get = function(info) return AutoMessage.db.profile.settings.enableCongrats end,
+                    set = function(info, value) AutoMessage.db.profile.settings.enableCongrats = value end,
+                },
+                enableWelcome = {
+                    type = "toggle",
+                    name = "Enable Welcome Messages",
+                    desc = "Toggle Welcome messages in the chat window.",
+                    order = 5,
+                    get = function(info) return AutoMessage.db.profile.settings.enableWelcome end,
+                    set = function(info, value) AutoMessage.db.profile.settings.enableWelcome = value end,
+                }
+            }
+        },
+        congrats = {
+            type = "group",
+            name = "Congratulations",
+            order = 2,
+            args = {
+                CongratsMessages = {
+                    type = "input",
+                    name = "Congrats Messages",
+                    desc = "Enter custom congrats messages, separated by new lines. Use [username] and [lvl] as placeholders.",
+                    order = 1,
+                    multiline = true,
+                    disabled = function(info) return AutoMessage.db.profile.congrats.updateCongratsLock end,
+                    confirm = true,
+                    width = "full",
+                    get = function(info) return table.concat(AutoMessage.db.profile.congrats.messages, "\n") end,
+                    set = function(info, value) AutoMessage.db.profile.congrats.messages = { strsplit("\n", value) } end,
+                },
+                newMessages = {
+                    type = "input",
+                    name = "New Message",
+                    desc = "Enter custom congrats messages for guild members. Use [username] and [lvl] as a placeholder.",
+                    confirm = true,
+                    order = 2,
+                    width = "full",
+                    set = "AddCongratsMessage",
+                },
+                updateMessage = {
+                    type = "toggle",
+                    name = "Enable list",
+                    desc = "Allow to update the list, each value should be separated by new lines. Use [username] as a placeholder.",
+                    width = "full",
+                    order = -1,
+                    get = function(info) return AutoMessage.db.profile.congrats.updateCongratsLock end,
+                    set = function(info, value) AutoMessage.db.profile.congrats.updateCongratsLock = value end;
+                }
+            }
+        },
+        welcome = {
+            type = "group",
+            name = "Welcome",
+            order = 3,
+            args = {
+                WelcomeMessages = {
+                    type = "input",
+                    name = "Messages",
+                    desc = "Enter custom welcome messages for new guild members, separated by new lines. Use [username] as a placeholder.",
+                    multiline = true,
+                    disabled = function(info) return AutoMessage.db.profile.welcome.updateWelcomeLock end,
+                    confirm = true,
+                    order = 1,
+                    width = "full",
+                    get = function(info) return table.concat(AutoMessage.db.profile.welcome.messages, "\n") end,
+                    set = function(info, value) AutoMessage.db.profile.welcome.messages = {strsplit('\n', value)} end
+                },
+                newMessage = {
+                    type = "input",
+                    name = "New Message",
+                    desc = "Enter custom welcome messages for new guild members, separated by new lines. Use [username] as a placeholder.",
+                    confirm = true,
+                    order = 2,
+                    width = "full",
+                    set = "AddWelcomeMessage",
+                },
+                updateMessage = {
+                    type = "toggle",
+                    name = "Enable list",
+                    desc = "Allow to update the list, each value should be separated by new lines. Use [username] as a placeholder.",
+                    width = "full",
+                    order = -1,
+                    get = function(info) return AutoMessage.db.profile.welcome.updateWelcomeLock end,
+                    set = function(info, value) AutoMessage.db.profile.welcome.updateWelcomeLock = value end;
+                }
+            }
+        },
+        profiles = {
+            type = "group",
+            name = "Profiles",
+            order = -1,
+            args = {}
+        }
+    }
+}
+
+local function LoadDefaultMessageIfNecessary()
+    if #AutoMessage.db.profile.congrats.messages == 0 then
+        AutoMessage.db.profile.congrats.messages = {            
             "Grats [username] on lvl [lvl]!",
             "Well done [username], you reached level [lvl]!",
             "Finally, [username] hit level [lvl]! Congrats!",
@@ -71,8 +237,10 @@ local defaults = {
             "Shiny new level acquired: [lvl]! Congrats [username]!",
             "Level [lvl] complete, onward and upward [username]!",
             "Huge congratulations to [username] for reaching level [lvl]!"
-        },
-        welcomeMessages = {
+        }
+    end
+    if #AutoMessage.db.profile.welcome.messages == 0 then
+        AutoMessage.db.profile.welcome.messages = {
             "Welcome to the guild, [username]!",
             "Glad to have you with us, [username]!",
             "Welcome aboard, [username]!",
@@ -123,166 +291,14 @@ local defaults = {
             "Welcome [username]! May your journey be legendary!",
             "Welcome [username]! We can't wait to get to know you!",
             "Welcome [username]! Here's to friendship, fun, and loot!"
-        },
-        updateCongratsLock = true,
-        updateWelcomeLock = true,
-        enableCongrats = true,
-        enableWelcome = true
-    },
-}
-
-local options = {
-    name = "AutoMessage",
-    handler = AutoMessage,
-    type = "group",
-    childGroups = "tab",
-    args = {
-        settings = {
-            type = "group",
-            name = "Settings",
-            order = 1,
-            args = {
-                debug = {
-                    type = "toggle",
-                    name = "Enable Debug Messages",
-                    desc = "Toggle debug messages in the chat window.",
-                    order = 1,
-                    get = function(info) return AutoMessage.db.profile.debug end,
-                    set = function(info, value) AutoMessage.db.profile.debug = value end,
-                },
-                channelHeader = {
-                    type = "header",
-                    name = "Common Settings",
-                    order = 2,
-                },
-                channels = {
-                    type = "multiselect",
-                    name = "Message Channels",
-                    desc = "Select the channels to send congratulatory messages to.",
-                    order = 3,
-                    values = {
-                        PRINT = "Print",
-                        GUILD = "Guild",
-                        WHISPER = "Whisper"
-                    },
-                    get = function(info, key) return AutoMessage.db.profile.channels[key] end,
-                    set = function(info, key, state) AutoMessage.db.profile.channels[key] = state end,
-                },
-                cooldown = {
-                    type = "range",
-                    name = "Cooldown (seconds)",
-                    desc = "Set the cooldown time between congratulatory messages to the same player.",
-                    order = 4,
-                    min = 10,
-                    max = 3600,
-                    step = 10,
-                    get = function(info) return AutoMessage.db.profile.cooldown end,
-                    set = function(info, value) AutoMessage.db.profile.cooldown = value end,
-                },
-                enableCongrats = {
-                    type = "toggle",
-                    name = "Enable Congrats Messages",
-                    desc = "Toggle Congrats messages in the chat window.",
-                    order = 5,
-                    get = function(info) return AutoMessage.db.profile.enableCongrats end,
-                    set = function(info, value) AutoMessage.db.profile.enableCongrats = value end,
-                },
-                enableWelcome = {
-                    type = "toggle",
-                    name = "Enable Welcome Messages",
-                    desc = "Toggle Welcome messages in the chat window.",
-                    order = 5,
-                    get = function(info) return AutoMessage.db.profile.enableWelcome end,
-                    set = function(info, value) AutoMessage.db.profile.enableWelcome = value end,
-                }
-            }
-        },
-        congrats = {
-            type = "group",
-            name = "Congratulations",
-            order = 2,
-            args = {
-                CongratsMessages = {
-                    type = "input",
-                    name = "Congrats Messages",
-                    desc = "Enter custom congrats messages, separated by new lines. Use [username] and [lvl] as placeholders.",
-                    order = 1,
-                    multiline = true,
-                    disabled = function(info) return AutoMessage.db.profile.updateCongratsLock end,
-                    confirm = true,
-                    width = "full",
-                    get = function(info) return table.concat(AutoMessage.db.profile.gratzMessages, "\n") end,
-                    set = function(info, value) AutoMessage.db.profile.gratzMessages = { strsplit("\n", value) } end,
-                },
-                newMessages = {
-                    type = "input",
-                    name = "New Message",
-                    desc = "Enter custom congrats messages for guild members. Use [username] and [lvl] as a placeholder.",
-                    confirm = true,
-                    order = 2,
-                    width = "full",
-                    set = "AddCongratsMessage",
-                },
-                updateMessage = {
-                    type = "toggle",
-                    name = "Enable list",
-                    desc = "Allow to update the list, each value should be separated by new lines. Use [username] as a placeholder.",
-                    width = "full",
-                    order = -1,
-                    get = function(info) return AutoMessage.db.profile.updateCongratsLock end,
-                    set = function(info, value) AutoMessage.db.profile.updateCongratsLock = value end;
-                }
-            }
-        },
-        welcome = {
-            type = "group",
-            name = "Welcome",
-            order = 3,
-            args = {
-                WelcomeMessages = {
-                    type = "input",
-                    name = "Messages",
-                    desc = "Enter custom welcome messages for new guild members, separated by new lines. Use [username] as a placeholder.",
-                    multiline = true,
-                    disabled = function(info) return AutoMessage.db.profile.updateWelcomeLock end,
-                    confirm = true,
-                    order = 1,
-                    width = "full",
-                    get = function(info) return table.concat(AutoMessage.db.profile.welcomeMessages, "\n") end,
-                    set = function(info, value) AutoMessage.db.profile.welcomeMessages = {strsplit('\n', value)} end
-                },
-                newMessage = {
-                    type = "input",
-                    name = "New Message",
-                    desc = "Enter custom welcome messages for new guild members, separated by new lines. Use [username] as a placeholder.",
-                    confirm = true,
-                    order = 2,
-                    width = "full",
-                    set = "AddWelcomeMessage",
-                },
-                updateMessage = {
-                    type = "toggle",
-                    name = "Enable list",
-                    desc = "Allow to update the list, each value should be separated by new lines. Use [username] as a placeholder.",
-                    width = "full",
-                    order = -1,
-                    get = function(info) return AutoMessage.db.profile.updateWelcomeLock end,
-                    set = function(info, value) AutoMessage.db.profile.updateWelcomeLock = value end;
-                }
-            }
-        },
-        profiles = {
-            type = "group",
-            name = "Profiles",
-            order = -1,
-            args = {}
         }
-    }
-}
+    end
+end
 
 
 function AutoMessage:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("AutoMessageDB", defaults, true)
+    LoadDefaultMessageIfNecessary()
     LibStub("AceConfig-3.0"):RegisterOptionsTable("AutoMessage", options, {"amconfig"})
     options.args.profiles.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
     self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("AutoMessage", "AutoMessage")
@@ -319,4 +335,5 @@ end
 
 function AutoMessage:RefreshConfig()
     self:Debug("Configuration refreshed.")
+    LoadDefaultMessageIfNecessary()
 end
