@@ -145,3 +145,11 @@ end
 function AutoMessage:AddCongratsMessage(info, newMessage)
    table.insert(AutoMessage.db.profile.congrats.messages, newMessage)
 end
+
+function AutoMessage:GetSpecificMessages(info)
+    AutoMessage:Debug("Get Number of info: " .. #info)
+end
+
+function AutoMessage:SetSpecificMessages(info, value)
+    AutoMessage:Debug("Set Number of info: " .. #info)
+end

@@ -25,6 +25,31 @@ local defaults = {
         congrats = {
             messages = {
             },
+            specificLevelMessages = {
+                {
+                    level = 40,
+                    messages = {
+                        "Level [lvl]! Time to ride in style, [username]!",
+                        "[username] reached level [lvl]! Mount time!",
+                        "Congrats [username]! Your mount awaits at level [lvl]!"
+                    }
+                },
+                {
+                    level = 60,
+                    messages = {
+                        "LEGENDARY! [username] has reached level [lvl]!",
+                        "Max level achieved! Congratulations [username]!",
+                        "[username] has conquered the journey and reached level [lvl]!",
+                        "Azeroth salutes you, [username]! Level [lvl] attained!",
+                        "What a journey! [username] is now level [lvl]!",
+                        "Welcome to the endgame, [username]!",
+                        "[username] completed the leveling adventure! Level [lvl]!",
+                        "A new champion rises! [username] reached level [lvl]!",
+                        "Drinks are on [username] after hitting level [lvl]!",
+                        "All hail [username], now level [lvl]!"
+                    }
+                }
+            },
             updateCongratsLock = true,
         },
         welcome = {
@@ -117,6 +142,28 @@ local options = {
                     width = "full",
                     get = function(info) return table.concat(AutoMessage.db.profile.congrats.messages, "\n") end,
                     set = function(info, value) AutoMessage.db.profile.congrats.messages = { strsplit("\n", value) } end,
+                },
+                Specific40LevelMessages = {
+                    type = "input",
+                    name = "Level 40 - Messages",                    
+                    desc = "Enter custom congrats messages, separated by new lines. Use [username] and [lvl] as placeholders.",
+                    multiline = true,
+                    disabled = function(info) return AutoMessage.db.profile.congrats.updateCongratsLock end,
+                    confirm = true,
+                    width = "full",
+                    get = "GetSpecificMessages",
+                    set = "SetSpecificMessages",
+                },
+                Specific60LevelMessages = {
+                    type = "input",
+                    name = "Level 60 - Messages",                    
+                    desc = "Enter custom congrats messages, separated by new lines. Use [username] and [lvl] as placeholders.",
+                    multiline = true,
+                    disabled = function(info) return AutoMessage.db.profile.congrats.updateCongratsLock end,
+                    confirm = true,
+                    width = "full",
+                    get = "GetSpecificMessages",
+                    set = "SetSpecificMessages",
                 },
                 newMessages = {
                     type = "input",
